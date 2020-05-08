@@ -139,3 +139,27 @@ SELECT COUNT(*) AS "total likes",
        (SELECT gender FROM profiles WHERE profiles.user_id = likes.user_id) AS "gender"
   FROM likes GROUP BY gender WITH ROLLUP;
 -- men put more likes
+
+ 
+-- 5. Find 10 users who are least active in using social network (activity criteria must be determined independently).
+--     first criteria updated_at profile max num of days
+--     second criteria updated_at user max num of days
+--     third criteria min of likes
+--     fourth criteria min posts
+--     fifth criteria min friends
+SELECT id,
+       (CONCAT(first_name, " ", last_name)) AS "user name",
+       (SELECT DATEDIFF(CURRENT_DATE(), updated_at) FROM profiles WHERE profiles.user_id = users.id) AS "first_criteria",
+       (DATEDIFF(CURRENT_DATE(), updated_at)) AS "second_criteria",
+       (SELECT COUNT(*) FROM likes WHERE likes.user_id = users.id ) AS "third_criteria",
+       (SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id) AS "fourth_criteria",
+       ((SELECT COUNT(*) FROM friendship WHERE friendship.user_id = users.id AND friendship.status_id = 
+           (SELECT id FROM friendship_statuses WHERE name = "confirmed")) +
+       (SELECT COUNT(*) FROM friendship WHERE friendship.friend_id = users.id AND friendship.status_id = 
+           (SELECT id FROM friendship_statuses WHERE name = "confirmed"))
+        ) AS "fifth_criteria"
+  FROM users 
+    ORDER BY first_criteria DESC, second_criteria DESC,
+    third_criteria, fourth_criteria, fifth_criteria
+  LIMIT 10; 
+ 
