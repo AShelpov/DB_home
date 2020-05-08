@@ -134,4 +134,8 @@ SELECT COUNT(*) AS "total likes",
   target_type_id = (SELECT id FROM target_types WHERE target_types = 'users')
   GROUP BY target_id ORDER BY age LIMIT 10;
  
-
+-- 4. Determine who put the most likes (total) - men or women?
+SELECT COUNT(*) AS "total likes",
+       (SELECT gender FROM profiles WHERE profiles.user_id = likes.user_id) AS "gender"
+  FROM likes GROUP BY gender WITH ROLLUP;
+-- men put more likes
