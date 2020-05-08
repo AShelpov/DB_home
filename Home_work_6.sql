@@ -123,8 +123,7 @@ ALTER TABLE messages
     FOREIGN KEY (community_id) REFERENCES communities(id);
 -- create queries
 
--- 3. ѕодсчитать общее количество лайков дес€ти самым молодым пользовател€м 
--- (сколько лайков получили 10 самых молодых пользователей).
+-- 3. Calculate the total number of likes for the ten youngest users (how many likes the 10 youngest users received).
 SELECT COUNT(*) AS "total likes", 
        (SELECT 
          FLOOR(((YEAR(CURRENT_DATE()) - YEAR(birthday)) * 12 + MONTH(CURRENT_DATE()) - MONTH(birthday)) / 12) 
