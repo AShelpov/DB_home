@@ -125,6 +125,14 @@ ALTER TABLE messages
 
 -- 3. ѕодсчитать общее количество лайков дес€ти самым молодым пользовател€м 
 -- (сколько лайков получили 10 самых молодых пользователей).
-
-
+SELECT COUNT(*) AS "total likes", 
+       (SELECT 
+         FLOOR(((YEAR(CURRENT_DATE()) - YEAR(birthday)) * 12 + MONTH(CURRENT_DATE()) - MONTH(birthday)) / 12) 
+         FROM profiles WHERE likes.target_id = profiles.user_id) AS 'age',
+       (SELECT CONCAT(first_name, " ", last_name) FROM users WHERE likes.target_id = users.id) AS "user name",
+       target_id AS "user id"
+  FROM likes WHERE
+  target_type_id = (SELECT id FROM target_types WHERE target_types = 'users')
+  GROUP BY target_id ORDER BY age LIMIT 10;
+ 
 
