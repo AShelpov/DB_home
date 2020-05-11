@@ -30,24 +30,82 @@ SELECT p.gender, COUNT(*) AS "total_likes"
 
  
 -- 5. Find 10 users who are least active in using social network (activity criteria must be determined independently).
---     first criteria updated_at profile max num of days
---     second criteria updated_at user max num of days
---     third criteria min of likes
---     fourth criteria min posts
---     fifth criteria min friends
-SELECT id,
-       (CONCAT(first_name, " ", last_name)) AS "user name",
-       (SELECT DATEDIFF(CURRENT_DATE(), updated_at) FROM profiles WHERE profiles.user_id = users.id) AS "first_criteria",
-       (DATEDIFF(CURRENT_DATE(), updated_at)) AS "second_criteria",
-       (SELECT COUNT(*) FROM likes WHERE likes.user_id = users.id ) AS "third_criteria",
-       (SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id) AS "fourth_criteria",
-       ((SELECT COUNT(*) FROM friendship WHERE friendship.user_id = users.id AND friendship.status_id = 
-           (SELECT id FROM friendship_statuses WHERE name = "confirmed")) +
-       (SELECT COUNT(*) FROM friendship WHERE friendship.friend_id = users.id AND friendship.status_id = 
-           (SELECT id FROM friendship_statuses WHERE name = "confirmed"))
-        ) AS "fifth_criteria"
-  FROM users 
-    ORDER BY first_criteria DESC, second_criteria DESC,
-    third_criteria, fourth_criteria, fifth_criteria
+--     first criteria updated_at profile number of days
+--     second criteria updated_at user number of days
+--     third criteria count of likes
+--     fourth criteria count of posts
+--     fifth criteria conunt of friends
+--     all criterias normalized by the log function 
+--     sum of normalized criterias give the estimation score, the higher the score the more activities is produced by user
+
+-- updating update_at in profiles
+UPDATE profiles SET updated_at = MAKEDATE(2020, FLOOR(1 + RAND() * 365));
+UPDATE profiles SET updated_at = CURRENT_DATE() WHERE updated_at > CURRENT_DATE();
+
+-- query for 10 users with minimum activities in social network
+SELECT u.id, 
+       CONCAT(u.first_name, " ", u.last_name) AS user_name,
+       (IF(LOG(DATEDIFF(CURRENT_DATE(), u.updated_at)) IS NULL, 0, LOG(DATEDIFF(CURRENT_DATE(), u.updated_at))) +
+        IF(LOG(DATEDIFF(CURRENT_DATE(), p.updated_at)) IS NULL, 0, LOG(DATEDIFF(CURRENT_DATE(), p.updated_at))) +
+        IF(LOG(tl.total_likes) IS NULL, 0, LOG(tl.total_likes)) +
+        IF(LOG(tp.total_posts) IS NULL, 0, LOG(tp.total_posts)) +
+        IF(LOG(tf.total_friends) IS NULL, 0, LOG(tf.total_friends))
+       ) AS estimation_score
+ FROM users u
+  JOIN profiles p 
+   ON u.id = p.user_id
+    JOIN (SELECT l.target_id, COUNT(*) as "total_likes" 
+           FROM likes l 
+            JOIN target_types tt 
+             ON l.target_type_id = tt.id 
+              WHERE target_types = "users" 
+               GROUP BY l.target_id
+          ) tl 
+    ON u.id = tl.target_id
+     JOIN (SELECT user_id, COUNT(*) AS total_posts 
+            FROM posts 
+             GROUP BY user_id
+           ) tp 
+      ON u.id = tp.user_id
+       JOIN 
+        (SELECT user_id, (friends_1 + friends_2) AS total_friends 
+         FROM
+          (SELECT user_id, COUNT(*) AS friends_1 
+            FROM friendship f 
+             JOIN friendship_statuses fs 
+              ON f.status_id = fs.id 
+               WHERE fs.name = "confirmed"
+                GROUP BY user_id) AS fs_table_1
+         JOIN  
+          (SELECT friend_id, COUNT(*) AS friends_2
+           FROM friendship f 
+            JOIN friendship_statuses fs 
+             ON f.status_id = fs.id 
+              WHERE fs.name = "confirmed"
+               GROUP BY friend_id) AS fs_table_2
+         ON fs_table_1.user_id = fs_table_2.friend_id) AS tf
+       ON  u.id = tf.user_id
+ ORDER BY estimation_score
   LIMIT 10; 
- 
+  
+
+
+
+       
+-- help 
+-- developing query of total friends
+SELECT user_id, (friends_1 + friends_2) AS total_friends FROM
+ (SELECT user_id, COUNT(*) AS friends_1 
+   FROM friendship f 
+    JOIN friendship_statuses fs 
+     ON f.status_id = fs.id 
+      WHERE fs.name = "confirmed"
+       GROUP BY user_id) AS fs_table_1
+ JOIN  
+  (SELECT friend_id, COUNT(*) AS friends_2
+    FROM friendship f 
+     JOIN friendship_statuses fs 
+      ON f.status_id = fs.id 
+       WHERE fs.name = "confirmed"
+        GROUP BY friend_id) AS fs_table_2
+ ON fs_table_1.user_id = fs_table_2.friend_id;  
